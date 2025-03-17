@@ -1,8 +1,8 @@
 // server.js
 const express = require('express');
-const { Pool } = require('pg');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const { Sequelize, DataTypes } = require('sequelize');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -11,29 +11,53 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// PostgreSQL connection
-const pool = new Pool({
-  user: 'postgres',
+// Sequelize setup
+const sequelize = new Sequelize('todoapp', 'postgres', 'Abba123$', {
   host: 'localhost',
-  database: 'todoapp',
-  password: 'Abba123$', // Replace with your actual password
-  port: 5432,
+  dialect: 'postgres',
+  logging: false // set to true for SQL query logging
+});
+
+// Define Todo model
+const Todo = sequelize.define('Todo', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  text: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  dueDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    field: 'due_date' // Map camelCase in JS to snake_case in DB
+  },
+  poc: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  completed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  }
+}, {
+  tableName: 'todos',  // explicitly set table name
+  timestamps: true,    // add createdAt and updatedAt columns
+  underscored: true    // use snake_case for auto-generated fields
 });
 
 // Initialize database
 const initDb = async () => {
   try {
-    // Create todos table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS todos (
-        id SERIAL PRIMARY KEY,
-        text VARCHAR(255) NOT NULL,
-        due_date DATE,
-        poc VARCHAR(100),
-        completed BOOLEAN DEFAULT FALSE
-      )
-    `);
-    console.log('Database initialized successfully');
+    // Test the connection
+    await sequelize.authenticate();
+    console.log('Connection has been established successfully.');
+    
+    // Sync the model with the database (create the table if it doesn't exist)
+    await sequelize.sync();
+    console.log('Database synchronized successfully');
   } catch (err) {
     console.error('Error initializing database:', err);
   }
@@ -47,8 +71,10 @@ initDb();
 // Get all todos
 app.get('/api/todos', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM todos ORDER BY id');
-    res.json(result.rows);
+    const todos = await Todo.findAll({
+      order: [['id', 'ASC']]
+    });
+    res.json(todos);
   } catch (err) {
     console.error('Error fetching todos:', err);
     res.status(500).json({ error: 'Failed to fetch todos' });
@@ -60,11 +86,13 @@ app.post('/api/todos', async (req, res) => {
   const { text, dueDate, poc } = req.body;
   
   try {
-    const result = await pool.query(
-      'INSERT INTO todos (text, due_date, poc) VALUES ($1, $2, $3) RETURNING *',
-      [text, dueDate, poc]
-    );
-    res.status(201).json(result.rows[0]);
+    const newTodo = await Todo.create({
+      text,
+      dueDate,
+      poc
+    });
+    
+    res.status(201).json(newTodo);
   } catch (err) {
     console.error('Error adding todo:', err);
     res.status(500).json({ error: 'Failed to add todo' });
@@ -77,16 +105,16 @@ app.put('/api/todos/:id', async (req, res) => {
   const { completed } = req.body;
   
   try {
-    const result = await pool.query(
-      'UPDATE todos SET completed = $1 WHERE id = $2 RETURNING *',
-      [completed, id]
-    );
+    const todo = await Todo.findByPk(id);
     
-    if (result.rows.length === 0) {
+    if (!todo) {
       return res.status(404).json({ error: 'Todo not found' });
     }
     
-    res.json(result.rows[0]);
+    todo.completed = completed;
+    await todo.save();
+    
+    res.json(todo);
   } catch (err) {
     console.error('Error updating todo:', err);
     res.status(500).json({ error: 'Failed to update todo' });
@@ -98,12 +126,13 @@ app.delete('/api/todos/:id', async (req, res) => {
   const { id } = req.params;
   
   try {
-    const result = await pool.query('DELETE FROM todos WHERE id = $1 RETURNING *', [id]);
+    const todo = await Todo.findByPk(id);
     
-    if (result.rows.length === 0) {
+    if (!todo) {
       return res.status(404).json({ error: 'Todo not found' });
     }
     
+    await todo.destroy();
     res.json({ message: 'Todo deleted successfully' });
   } catch (err) {
     console.error('Error deleting todo:', err);
@@ -114,4 +143,13 @@ app.delete('/api/todos/:id', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+  console.log('Shutting down server...');
+  server.close(() => {
+    console.log('Server shut down');
+    process.exit(0);
+  });
 });
