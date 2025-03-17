@@ -16,7 +16,7 @@ const pool = new Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'todoapp',
-  password: 'yourpassword', // Replace with your actual password
+  password: 'Abba123$', // Replace with your actual password
   port: 5432,
 });
 
