@@ -1,13 +1,14 @@
 import React from 'react';
 import TodoItem from './TodoItem';
 
-function TodoList({ todos, toggleComplete, deleteTodo }) {
+function TodoList({ todos, toggleComplete, deleteTodo , listTitle}) {
   if (todos.length === 0) {
     return <div className="empty-list">No tasks yet. Add a task to get started!</div>;
   }
   
   return (
     <div className="todo-table">
+         <label htmlFor="todo-table">{listTitle}</label>
       <div className="todo-table-header">
         <div className="header-cell header-status">Status</div>
         <div className="header-cell header-task">Task</div>

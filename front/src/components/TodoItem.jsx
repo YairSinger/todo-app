@@ -23,7 +23,7 @@ function TodoItem({ todo, toggleComplete, deleteTodo }) {
         {formattedDate}
       </div>
       <div className="todo-cell todo-poc">
-        {todo.poc || '-'}
+        {todo.Poc ? todo.Poc.name : 'Unknown'}
       </div>
       <div className="todo-cell todo-actions">
         <button onClick={() => deleteTodo(todo.id)}>Delete</button>
