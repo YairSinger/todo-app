@@ -40,3 +40,69 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Add these styles to your App.css file */
+
+.email-verification-form {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.verification-info {
+  background-color: #f0f8ff;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #3498db;
+  margin: 15px 0;
+  line-height: 1.5;
+}
+
+.verification-success {
+  text-align: center;
+  padding: 20px;
+}
+
+.verification-success h3 {
+  color: #27ae60;
+  margin-bottom: 10px;
+}
+
+.form-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.back-btn {
+  background-color: transparent;
+  border: 1px solid #ccc;
+  color: #555;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #3498db;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  margin-left: 15px;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 10px 15px;
+  margin: 10px 0;
+  border-radius: 4px;
+  border-left: 4px solid #28a745;
+}

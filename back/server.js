@@ -1,15 +1,16 @@
 // server.js
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const { Sequelize, DataTypes } = require('sequelize');
+import express from 'express';
+import cors from 'cors';
+import { Sequelize, DataTypes } from 'sequelize';
+import crypto from 'crypto'; // Node.js built-in
+import nodemailer from 'nodemailer';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json()); // Instead of body-parser
 
 // Sequelize setup
 const sequelize = new Sequelize('todoapp', 'postgres', 'Abba123$', {
@@ -18,7 +19,16 @@ const sequelize = new Sequelize('todoapp', 'postgres', 'Abba123$', {
   logging: false // set to true for SQL query logging
 });
 
-//define POC model
+// Create email transporter (configure for your email provider)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'yairsinge52@gmail.com',
+    pass: 'dkjl qibm pzug qosi' // Use app password for Gmail
+  }
+});
+
+// Define POC model
 const Poc = sequelize.define('Poc', {
   id: {
     type: DataTypes.INTEGER,
@@ -38,9 +48,42 @@ const Poc = sequelize.define('Poc', {
     }
   }
 },{
-  tableName: 'pocs',  // explicitly set table name
-  timestamps: true,    // add createdAt and updatedAt columns
-  underscored: true    // use snake_case for auto-generated fields
+  tableName: 'pocs',
+  timestamps: true,
+  underscored: true
+});
+
+// Define PendingPoc model
+const PendingPoc = sequelize.define('PendingPoc', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+    validate: {
+      isEmail: true
+    }
+  },
+  verificationCode: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  expiresAt: {
+    type: DataTypes.DATE,
+    allowNull: false
+  }
+},{
+  tableName: 'pending_pocs',
+  timestamps: true,
+  underscored: true
 });
 
 // Define Todo model
@@ -57,7 +100,7 @@ const Todo = sequelize.define('Todo', {
   dueDate: {
     type: DataTypes.DATEONLY,
     allowNull: true,
-    field: 'due_date' // Map camelCase in JS to snake_case in DB
+    field: 'due_date'
   },
   poc: {
     type: DataTypes.STRING,
@@ -68,11 +111,12 @@ const Todo = sequelize.define('Todo', {
     defaultValue: false
   }
 }, {
-  tableName: 'todos',  // explicitly set table name
-  timestamps: true,    // add createdAt and updatedAt columns
-  underscored: true    // use snake_case for auto-generated fields
+  tableName: 'todos',
+  timestamps: true,
+  underscored: true
 });
 
+// Set up associations
 Poc.hasMany(Todo, {
   foreignKey:{
     name: 'pocId',
@@ -88,8 +132,6 @@ Todo.belongsTo(Poc, {
     allowNull: false
   }
 });
-
-
 
 // Initialize database
 const initDb = async () => {
@@ -110,7 +152,7 @@ const initDb = async () => {
 initDb();
 
 // ROUTES
-// POC ROUTES - Updated to always return arrays
+// POC ROUTES
 
 // Get all POCs
 app.get('/api/pocs', async (req, res) => {
@@ -119,14 +161,113 @@ app.get('/api/pocs', async (req, res) => {
       order: [['name', 'ASC']]
     });
     
-    // Ensure we're sending an array (even if empty)
-    // Sequelize's findAll should already return an array, but let's make it explicit
     res.json(Array.isArray(pocs) ? pocs : []);
     
   } catch (err) {
     console.error('Error fetching POCs:', err);
-    // Return empty array instead of error object to maintain consistent type
     res.status(500).json([]);
+  }
+});
+
+// Route to initiate email verification
+app.post('/api/pocs/verify', async (req, res) => {
+  const { name, email } = req.body;
+  
+  try {
+    // Validate email
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!email || !emailPattern.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    // Check if email already exists in confirmed POCs
+    const existingPoc = await Poc.findOne({ where: { email } });
+    if (existingPoc) {
+      return res.status(400).json({ error: 'Email is already registered' });
+    }
+    
+    // Generate verification code
+    const verificationCode = crypto.randomInt(100000, 999999).toString();
+    
+    // Set expiration time (30 minutes from now)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+    
+    // Remove any previous pending verification for this email
+    await PendingPoc.destroy({ where: { email } });
+    
+    // Store in database
+    await PendingPoc.create({
+      name,
+      email,
+      verificationCode,
+      expiresAt
+    });
+    
+    // Send verification email - for testing just log the code
+    console.log(`Verification code for ${email}: ${verificationCode}`);
+    
+   
+    
+    const mailOptions = {
+      from: 'todo.app.list@gmail.com',
+      to: email,
+      subject: 'Verify Your Email for Todo App',
+      text: `Your verification code is: ${verificationCode}\nThis code will expire in 30 minutes.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Email Verification for Todo App</h2>
+          <p>Hello ${name},</p>
+          <p>Your verification code is: <strong>${verificationCode}</strong></p>
+          <p>This code will expire in 30 minutes.</p>
+          <p>Thanks for registering!</p>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    
+    
+    res.status(200).json({ message: 'Verification code sent to email' });
+  } catch (err) {
+    console.error('Error initiating email verification:', err);
+    res.status(500).json({ error: 'Failed to send verification code' });
+  }
+});
+
+// Route to confirm email verification
+app.post('/api/pocs/confirm', async (req, res) => {
+  const { email, code } = req.body;
+  
+  try {
+    // Find the pending verification
+    const pendingPoc = await PendingPoc.findOne({ 
+      where: { 
+        email,
+        verificationCode: code,
+        expiresAt: { [Sequelize.Op.gt]: new Date() } // Check if not expired
+      } 
+    });
+    
+    if (!pendingPoc) {
+      return res.status(400).json({ 
+        error: 'Invalid or expired verification code' 
+      });
+    }
+    
+    // Create confirmed POC
+    const newPoc = await Poc.create({
+      name: pendingPoc.name,
+      email: pendingPoc.email
+    });
+    
+    // Delete the pending verification
+    await pendingPoc.destroy();
+    
+    res.status(201).json(newPoc);
+  } catch (err) {
+    console.error('Error confirming email verification:', err);
+    res.status(500).json({ error: 'Failed to confirm email' });
   }
 });
 
@@ -205,7 +346,6 @@ app.get('/api/todos', async (req, res) => {
 });
 
 // Add a new todo
-// Add a new todo
 app.post('/api/todos', async (req, res) => {
   const { text, dueDate, pocEmail } = req.body;
   
@@ -247,6 +387,7 @@ app.post('/api/todos', async (req, res) => {
     res.status(500).json({ error: 'Failed to add todo' });
   }
 });
+
 // Update todo (toggle completion or other updates)
 app.put('/api/todos/:id', async (req, res) => {
   const { id } = req.params;

@@ -1,16 +1,20 @@
 // components/PocManager.jsx
 import React, { useState, useEffect } from 'react';
+import EmailVerificationForm from './EmailVerificationForm';
 
 const API_URL = 'http://localhost:5000/api';
 
 function PocManager({ onUpdate }) {
   const [pocs, setPocs] = useState([]);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  
+  // New state for verification flow
+  const [showVerificationForm, setShowVerificationForm] = useState(false);
 
   useEffect(() => {
     fetchPocs();
@@ -41,31 +45,24 @@ function PocManager({ onUpdate }) {
     
     if (!name.trim() || !email.trim()) return;
     
+    // If we're adding a new POC, show the verification form
+    if (!isEditing) {
+      setShowVerificationForm(true);
+      return;
+    }
+    
+    // Otherwise, proceed with editing an existing POC
     try {
-      let response;
-      
-      if (isEditing) {
-        // Update existing POC
-        response = await fetch(`${API_URL}/pocs/${editId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name, email }),
-        });
-      } else {
-        // Add new POC
-        response = await fetch(`${API_URL}/pocs`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name, email }),
-        });
-      }
+      const response = await fetch(`${API_URL}/pocs/${editId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email }),
+      });
       
       if (!response.ok) {
-        throw new Error(`Failed to ${isEditing ? 'update' : 'add'} POC`);
+        throw new Error('Failed to update POC');
       }
       
       // Refresh POC list
@@ -80,15 +77,29 @@ function PocManager({ onUpdate }) {
       }
       
       // Reset form
-      setName('');
-      setEmail('');
-      setIsEditing(false);
-      setEditId(null);
+      resetForm();
       
     } catch (err) {
-      console.error(`Error ${isEditing ? 'updating' : 'adding'} POC:`, err);
-      setError(`Failed to ${isEditing ? 'update' : 'add'} POC`);
+      console.error('Error updating POC:', err);
+      setError('Failed to update POC');
     }
+  };
+
+  const handlePocAdded = (newPoc) => {
+    // Add the new POC to the local list
+    setPocs([...pocs, newPoc]);
+    
+    // Call the onUpdate callback to refresh todos if provided
+    if (onUpdate) {
+      onUpdate();
+    } else {
+      // If no onUpdate callback was provided, at least dispatch the event
+      window.dispatchEvent(new CustomEvent('pocsUpdated'));
+    }
+    
+    // Reset form and hide verification form
+    resetForm();
+    setShowVerificationForm(false);
   };
 
   const handleEdit = (poc) => {
@@ -121,12 +132,24 @@ function PocManager({ onUpdate }) {
     }
   };
 
-  const handleCancel = () => {
+  const resetForm = () => {
     setName('');
     setEmail('');
     setIsEditing(false);
     setEditId(null);
+    setShowVerificationForm(false);
   };
+
+  // If verification form is shown, render it
+  if (showVerificationForm) {
+    return (
+      <EmailVerificationForm
+        onPocAdded={handlePocAdded}
+        emailToAdd={email}
+        onCancel={resetForm}
+      />
+    );
+  }
 
   return (
     <div className="poc-manager">
@@ -162,7 +185,7 @@ function PocManager({ onUpdate }) {
             {isEditing ? 'Update Contact' : 'Add Contact'}
           </button>
           {isEditing && (
-            <button type="button" onClick={handleCancel} className="cancel-btn">
+            <button type="button" onClick={resetForm} className="cancel-btn">
               Cancel
             </button>
           )}
