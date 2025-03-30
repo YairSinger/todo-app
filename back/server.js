@@ -21,11 +21,14 @@ const sequelize = new Sequelize('todoapp', 'postgres', 'Abba123$', {
 
 // Create email transporter (configure for your email provider)
 const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465, //common for outgoing mail
+  secure: true,
   service: 'gmail',
   auth: {
     user: 'yairsinge52@gmail.com',
-    pass: 'dkjl qibm pzug qosi' // Use app password for Gmail
-  }
+    pass: 'mkor iarl fmdh esdk', // Use app password for Gmail    
+  },
 });
 
 // Define POC model
@@ -210,7 +213,7 @@ app.post('/api/pocs/verify', async (req, res) => {
    
     
     const mailOptions = {
-      from: 'todo.app.list@gmail.com',
+      from: 'yairsinger52@gmail.com',
       to: email,
       subject: 'Verify Your Email for Todo App',
       text: `Your verification code is: ${verificationCode}\nThis code will expire in 30 minutes.`,
@@ -224,8 +227,8 @@ app.post('/api/pocs/verify', async (req, res) => {
         </div>
       `
     };
-    
-    await transporter.sendMail(mailOptions);
+    //TODO fix mail
+    //await transporter.sendMail(mailOptions);
     
     
     res.status(200).json({ message: 'Verification code sent to email' });
@@ -313,12 +316,12 @@ app.delete('/api/pocs/:id', async (req, res) => {
   const { id } = req.params;
   
   try {
-    const poc = await Poc.findByPk(id);
+    
     
     if (!poc) {
       return res.status(404).json({ error: 'POC not found' });
     }
-    
+    console.log(`triying to delete poc number:`, id);
     await poc.destroy();
     
     res.json({ message: 'POC deleted successfully' });

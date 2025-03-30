@@ -12,6 +12,7 @@ function PocManager({ onUpdate }) {
   const [editId, setEditId] = useState(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [pocEmail, setPocEmail] = useState('');
   
   // New state for verification flow
   const [showVerificationForm, setShowVerificationForm] = useState(false);
@@ -135,6 +136,7 @@ function PocManager({ onUpdate }) {
   const resetForm = () => {
     setName('');
     setEmail('');
+    setPocEmail('');
     setIsEditing(false);
     setEditId(null);
     setShowVerificationForm(false);
@@ -144,6 +146,7 @@ function PocManager({ onUpdate }) {
   if (showVerificationForm) {
     return (
       <EmailVerificationForm
+        nameToAdd={name}
         onPocAdded={handlePocAdded}
         emailToAdd={email}
         onCancel={resetForm}
@@ -202,22 +205,41 @@ function PocManager({ onUpdate }) {
         <div className="empty-list">No contacts found</div>
       ) : (
         <div className="poc-list">
-          {pocs.map(poc => (
-            <div key={poc.id} className="poc-item">
-              <div className="poc-info">
-                <div className="poc-name">{poc.name}</div>
-                <div className="poc-email">{poc.email}</div>
-              </div>
-              <div className="poc-actions">
-                <button onClick={() => handleEdit(poc)} className="edit-btn">
+           <select
+              id="pocEmail"
+              value={pocEmail}
+              onChange={(e) => setPocEmail(e.target.value)}
+              required
+            >
+              <option value="">-- Registered Persons --</option>
+              {/* Ensure pocs is an array before mapping */}
+              {Array.isArray(pocs) && pocs.map(poc => (
+                <option key={poc.id} value={poc.email}>
+                  {poc.name} ({poc.email})
+                </option>
+              ))}              
+            </select>
+            <div className="poc-actions">
+                <button onClick={() => {
+                  const selectPoc = pocs.find(poc => poc.email === pocEmail);
+                  if(selectPoc)
+                    handleEdit(selectPoc);
+                  } 
+                }                 
+                
+                className="edit-btn">
                   Edit
                 </button>
-                <button onClick={() => handleDelete(poc.id)} className="delete-btn">
+                <button onClick={() => {
+                   const selectPoc = pocs.find(poc => poc.email === pocEmail);
+                   if(selectPoc)
+                    handleDelete(selectPoc.id)
+
+                }
+                } className="delete-btn">
                   Delete
                 </button>
-              </div>
-            </div>
-          ))}
+              </div>         
         </div>
       )}
     </div>

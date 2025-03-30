@@ -3,12 +3,12 @@ import React, { useState } from 'react';
 
 const API_URL = 'http://localhost:5000/api';
 
-function EmailVerificationForm({ onPocAdded, emailToAdd, onCancel }) {
+function EmailVerificationForm({ onPocAdded, emailToAdd, onCancel , nameToAdd}) {
   // Step tracking
   const [step, setStep] = useState('input'); // 'input', 'verify', 'success'
   
   // Form data
-  const [name, setName] = useState('');
+  const [name, setName] = useState(nameToAdd ||'');
   const [email, setEmail] = useState(emailToAdd || '');
   const [verificationCode, setVerificationCode] = useState('');
   
