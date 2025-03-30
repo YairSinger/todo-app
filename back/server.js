@@ -3,8 +3,10 @@ import express from 'express';
 import cors from 'cors';
 import { Sequelize, DataTypes } from 'sequelize';
 import crypto from 'crypto'; // Node.js built-in
-import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+import axios from 'axios';
 
+const env = dotenv.config(); 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -19,17 +21,27 @@ const sequelize = new Sequelize('todoapp', 'postgres', 'Abba123$', {
   logging: false // set to true for SQL query logging
 });
 
-// Create email transporter (configure for your email provider)
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465, //common for outgoing mail
-  secure: true,
-  service: 'gmail',
-  auth: {
-    user: 'yairsinge52@gmail.com',
-    pass: 'mkor iarl fmdh esdk', // Use app password for Gmail    
-  },
-});
+async function sendEmail(toEmail, expirationTime, passcode) {
+  try {
+      const response = await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
+          service_id: process.env.EMAILJS_SERVICE_ID,
+          template_id: process.env.EMAILJS_TEMPLATE_ID,
+          user_id: process.env.EMAILJS_PUBLIC_KEY, // Public Key (for browser-based requests)
+          accessToken: process.env.EMAILJS_PRIVATE_KEY, // Private Key (for server-side requests)
+          template_params: {
+              email: toEmail,
+              expiration_time: expirationTime,
+              passcode: passcode,
+          },
+      });
+
+      console.log('Email sent successfully:', response.data);
+      return response.data;
+  } catch (error) {
+      console.error('Error sending email:', error.response ? error.response.data : error.message);
+  }
+}
+
 
 // Define POC model
 const Poc = sequelize.define('Poc', {
@@ -209,26 +221,8 @@ app.post('/api/pocs/verify', async (req, res) => {
     
     // Send verification email - for testing just log the code
     console.log(`Verification code for ${email}: ${verificationCode}`);
-    
-   
-    
-    const mailOptions = {
-      from: 'yairsinger52@gmail.com',
-      to: email,
-      subject: 'Verify Your Email for Todo App',
-      text: `Your verification code is: ${verificationCode}\nThis code will expire in 30 minutes.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Email Verification for Todo App</h2>
-          <p>Hello ${name},</p>
-          <p>Your verification code is: <strong>${verificationCode}</strong></p>
-          <p>This code will expire in 30 minutes.</p>
-          <p>Thanks for registering!</p>
-        </div>
-      `
-    };
     //TODO fix mail
-    //await transporter.sendMail(mailOptions);
+    sendEmail(email, expiresAt.toLocaleString(), verificationCode);
     
     
     res.status(200).json({ message: 'Verification code sent to email' });
