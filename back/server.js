@@ -221,7 +221,7 @@ app.post('/api/pocs/verify', async (req, res) => {
     
     // Send verification email - for testing just log the code
     console.log(`Verification code for ${email}: ${verificationCode}`);
-    //TODO fix mail
+   
     sendEmail(email, expiresAt.toLocaleString(), verificationCode);
     
     
