@@ -1,53 +1,43 @@
 // components/QuickPocForm.jsx
 import React, { useState } from 'react';
+import EmailVerificationForm from './EmailVerificationForm';
 
-const API_URL = 'http://localhost:5000/api';
+
 
 function QuickPocForm({ onPocAdded, emailToAdd, onCancel }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState(emailToAdd || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+   // New state for verification flow
+  const [showVerificationForm, setShowVerificationForm] = useState(false);
 
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!name.trim() || !email.trim()) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch(`${API_URL}/pocs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to add contact');
-      }
-      
-      const newPoc = await response.json();
-      
-      // Call the parent callback
-      if (onPocAdded) {
-        onPocAdded(newPoc);
-      }
-      
-      // Reset form
-      setName('');
-      setEmail('');
-      
-    } catch (err) {
-      console.error('Error adding POC:', err);
-      setError('Failed to add contact. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+
+    setShowVerificationForm(true);    
   };
+
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setError(null);
+    setShowVerificationForm(false);
+  };
+     // If verification form is shown, render it
+  if (showVerificationForm) {
+    return (
+      <EmailVerificationForm
+        nameToAdd={name}
+        onPocAdded={onPocAdded}
+        emailToAdd={email}
+        onCancel={resetForm}
+      />
+    );
+  }
 
   return (
     <div className="quick-poc-form">

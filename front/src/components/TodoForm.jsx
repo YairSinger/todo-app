@@ -230,7 +230,7 @@ function TodoForm({ addTodo, refreshTrigger }) {
               className="link-button"
               onClick={() => setUseCustomEmail(true)}
             >
-              Enter new email
+              Enter email mannually
             </button>
           </div>
         )}

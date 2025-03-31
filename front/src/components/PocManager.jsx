@@ -100,7 +100,7 @@ function PocManager({ onUpdate }) {
     
     // Reset form and hide verification form
     resetForm();
-    setShowVerificationForm(false);
+    
   };
 
   const handleEdit = (poc) => {
